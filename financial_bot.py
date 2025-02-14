@@ -11,6 +11,8 @@ import logging
 import time
 import sys
 import warnings
+import redis
+import json
 
 
 
@@ -31,6 +33,55 @@ UPDATE_CHANNEL_ID = os.environ.get("UPDATE_CHANNEL_ID")
 AUTHORIZED_USER_IDS = os.environ.get("AUTHORIZED_USER_IDS", "").split(",")
 AUTHORIZED_ROLES = os.environ.get("AUTHORIZED_ROLES", "").split(",")
 BOT_OWNER_ID = os.environ.get("BOT_OWNER_ID")
+
+import os
+import redis
+import json
+
+# Step 1: Connect to Redis with Railway URL Handling
+redis_url = os.environ.get("REDIS_URL")
+if not redis_url or redis_url.strip() == "":
+    raise ValueError("[ERROR] REDIS_URL is not set or empty. Verify your Railway environment variables.")
+
+try:
+    redis_client = redis.from_url(redis_url)
+    redis_client.ping()  # Test the connection
+    print(f"[SUCCESS] Connected to Redis via Railway URL: {redis_url}")
+except redis.ConnectionError as e:
+    raise ConnectionError(f"[ERROR] Failed to connect to Redis from Railway URL. Error: {e}")
+except Exception as e:
+    raise ValueError(f"[ERROR] Unexpected error during Redis connection: {e}")
+# Step 2: Redis Functions Integration
+
+def add_user_watchlist(username, watchlist):
+    """Add or update user's watchlist."""
+    redis_client.hset(f"user:{username}", "watchlist", ",".join(watchlist))
+    return f"{username}'s watchlist updated: {', '.join(watchlist)}"
+
+def get_user_watchlist(username):
+    """Retrieve user's watchlist."""
+    watchlist = redis_client.hget(f"user:{username}", "watchlist")
+    return watchlist.decode("utf-8").split(",") if watchlist else []
+
+def add_user_portfolio(username, portfolio):
+    """Add or update user's portfolio."""
+    redis_client.hset(f"user:{username}", "portfolio", json.dumps(portfolio))
+    return f"{username}'s portfolio updated."
+
+def get_user_portfolio(username):
+    """Retrieve user's portfolio."""
+    portfolio = redis_client.hget(f"user:{username}", "portfolio")
+    return json.loads(portfolio) if portfolio else {}
+
+def add_user_alert(username, alert):
+    """Add or update user's price alert."""
+    redis_client.hset(f"user:{username}", "alerts", alert)
+    return f"{username}'s alert added."
+
+def get_user_alerts(username):
+    """Retrieve user's price alerts."""
+    alerts = redis_client.hget(f"user:{username}", "alerts")
+    return alerts.decode("utf-8") if alerts else "No alerts found."
 
 
 AUTHORIZED_USER_IDS = [int(user_id) for user_id in AUTHORIZED_USER_IDS if user_id]
