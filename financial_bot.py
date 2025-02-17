@@ -15,6 +15,7 @@ import redis
 import json
 import redis
 import aiohttp
+import openai
 
 
 
@@ -32,6 +33,10 @@ import aiohttp
 
 # FIN_MODEL_API_KEY = os.getenv("FIN_MODEL_API_KEY")
 
+# openai.api_key = os.getenv("OPENAI_API_KEY")
+
+
+
 
 DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")
 ALPHA_VANTAGE_API_KEY = os.environ.get("ALPHA_VANTAGE_API_KEY")
@@ -40,6 +45,7 @@ AUTHORIZED_USER_IDS = os.environ.get("AUTHORIZED_USER_IDS", "").split(",")
 AUTHORIZED_ROLES = os.environ.get("AUTHORIZED_ROLES", "").split(",")
 BOT_OWNER_ID = os.environ.get("BOT_OWNER_ID")
 FIN_MODEL_API_KEY = os.environ.get("FIN_MODEL_API_KEY")
+openai.api_key = os.environ.get("OPENAI_API_KEY")
 
 
 
@@ -460,6 +466,24 @@ async def historical(ctx, symbol: str, period: str = "1y"):
         logger.error(f"Error fetching historical data for {symbol}: {e}")
 
 # 
+
+@bot.command(name='ask', help='Ask ChatGPT any financial or general question. Usage: !ask [your question]')
+async def ask(ctx, *, question: str):
+    try:
+        await ctx.send(f"🧠 {ctx.author.mention} Thinking...")
+
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "system", "content": "You are a helpful financial assistant."},
+                    {"role": "user", "content": question}]
+        )
+
+        answer = response.choices[0].message['content']
+        await ctx.send(f"💬 {ctx.author.mention} {answer}")
+
+    except Exception as e:
+        logger.error(f"Error with OpenAI API: {e}")
+        await ctx.send(f"⚠️ Error fetching response from ChatGPT.")
 
 @bot.command(name='set_alert', help='Set a price alert. Restricted to authorized users.')
 async def set_alert(ctx, asset: str, price: float):
