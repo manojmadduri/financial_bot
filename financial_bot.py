@@ -404,11 +404,22 @@ async def company(ctx, symbol: str):
                     company_data = data[0]
                     name = company_data.get('companyName', 'N/A')
                     industry = company_data.get('industry', 'N/A')
+                    sector = company_data.get('sector', 'N/A')
+                    ceo = company_data.get('ceo', 'N/A')
+                    website = company_data.get('website', 'N/A')
                     description = company_data.get('description', 'N/A')
+                    market_cap = company_data.get('mktCap', 'N/A')
+                    stock_price = company_data.get('price', 'N/A')
 
                     embed = discord.Embed(title=f"{name} ({symbol.upper()})", color=0x00ff00)
-                    embed.add_field(name="Industry", value=industry, inline=False)
-                    embed.add_field(name="Description", value=description[:1024], inline=False)
+                    embed.add_field(name="**Industry**", value=industry, inline=True)
+                    embed.add_field(name="**Sector**", value=sector, inline=True)
+                    embed.add_field(name="**CEO**", value=ceo, inline=False)
+                    embed.add_field(name="**Market Cap**", value=f"${market_cap:,.2f}", inline=True)
+                    embed.add_field(name="**Stock Price**", value=f"${stock_price:,.2f}", inline=True)
+                    embed.add_field(name="**Website**", value=f"[Visit Website]({website})", inline=False)
+                    embed.add_field(name="**Description**", value=description[:1024], inline=False)
+
                     await ctx.send(embed=embed)
                 else:
                     await ctx.send("❌ No data found for that symbol.")
