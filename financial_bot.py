@@ -15,7 +15,7 @@ import redis
 import json
 import redis
 import aiohttp
-import openai
+from openai import OpenAI
 
 
 
@@ -35,7 +35,7 @@ import openai
 
 # openai.api_key = os.getenv("OPENAI_API_KEY")
 
-
+# client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")
@@ -45,7 +45,7 @@ AUTHORIZED_USER_IDS = os.environ.get("AUTHORIZED_USER_IDS", "").split(",")
 AUTHORIZED_ROLES = os.environ.get("AUTHORIZED_ROLES", "").split(",")
 BOT_OWNER_ID = os.environ.get("BOT_OWNER_ID")
 FIN_MODEL_API_KEY = os.environ.get("FIN_MODEL_API_KEY")
-openai.api_key = os.environ.get("OPENAI_API_KEY")
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 
 
@@ -472,17 +472,18 @@ async def ask(ctx, *, question: str):
     try:
         await ctx.send(f"🧠 {ctx.author.mention} Thinking...")
 
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4",
-            messages=[{"role": "system", "content": "You are a helpful financial assistant."},
-                    {"role": "user", "content": question}]
+            messages=[
+                {"role": "system", "content": "You are a helpful financial assistant."},
+                {"role": "user", "content": question}
+            ]
         )
 
-        answer = response.choices[0].message['content']
+        answer = response.choices[0].message.content
         await ctx.send(f"💬 {ctx.author.mention} {answer}")
 
     except Exception as e:
-        logger.error(f"Error with OpenAI API: {e}")
         await ctx.send(f"⚠️ Error fetching response from ChatGPT.")
 
 @bot.command(name='set_alert', help='Set a price alert. Restricted to authorized users.')
