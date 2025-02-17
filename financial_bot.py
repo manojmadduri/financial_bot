@@ -14,7 +14,7 @@ import warnings
 import redis
 import json
 import redis
-import json
+import aiohttp
 
 
 
@@ -30,6 +30,8 @@ import json
 # BOT_OWNER_ID = os.getenv("BOT_OWNER_ID")
 # redis_url = os.getenv("REDIS_URL")
 
+# FIN_MODEL_API_KEY = os.getenv("FIN_MODEL_API_KEY")
+
 
 DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")
 ALPHA_VANTAGE_API_KEY = os.environ.get("ALPHA_VANTAGE_API_KEY")
@@ -37,6 +39,9 @@ UPDATE_CHANNEL_ID = os.environ.get("UPDATE_CHANNEL_ID")
 AUTHORIZED_USER_IDS = os.environ.get("AUTHORIZED_USER_IDS", "").split(",")
 AUTHORIZED_ROLES = os.environ.get("AUTHORIZED_ROLES", "").split(",")
 BOT_OWNER_ID = os.environ.get("BOT_OWNER_ID")
+FIN_MODEL_API_KEY = os.environ.get("FIN_MODEL_API_KEY")
+
+
 
 
 # # Step 1: Connect to Redis with Railway URL Handling
@@ -388,7 +393,27 @@ async def chart(ctx, symbol: str, period: str = "30d"):
         logger.error(f"Error fetching stock data for {symbol}: {e}")
 
 
+@bot.command(name='company', help='Get company details. Usage: !company SYMBOL')
+async def company(ctx, symbol: str):
+    url = f"https://financialmodelingprep.com/api/v3/profile/{symbol}?apikey={FIN_MODEL_API_KEY}"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            if response.status == 200:
+                data = await response.json()
+                if data:
+                    company_data = data[0]
+                    name = company_data.get('companyName', 'N/A')
+                    industry = company_data.get('industry', 'N/A')
+                    description = company_data.get('description', 'N/A')
 
+                    embed = discord.Embed(title=f"{name} ({symbol.upper()})", color=0x00ff00)
+                    embed.add_field(name="Industry", value=industry, inline=False)
+                    embed.add_field(name="Description", value=description[:1024], inline=False)
+                    await ctx.send(embed=embed)
+                else:
+                    await ctx.send("❌ No data found for that symbol.")
+            else:
+                await ctx.send("⚠️ Error fetching data from the external API.")
 
 
 
