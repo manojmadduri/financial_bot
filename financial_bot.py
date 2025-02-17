@@ -420,11 +420,11 @@ async def company(ctx, symbol: str):
                     embed.add_field(name="**Website**", value=f"[Visit Website]({website})", inline=False)
                     embed.add_field(name="**Description**", value=description[:1024], inline=False)
 
-                    await ctx.send(embed=embed)
+                    await ctx.send ( {ctx.author.mention} embed=embed)
                 else:
-                    await ctx.send("❌ No data found for that symbol.")
+                    await ctx.send("❌ {ctx.author.mention} No data found for that symbol.")
             else:
-                await ctx.send("⚠️ Error fetching data from the external API.")
+                await ctx.send("⚠️{ctx.author.mention} Error fetching data from the external API.")
 
 
 
