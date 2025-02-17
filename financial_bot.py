@@ -212,39 +212,83 @@ async def on_ready():
 #         logger.error(f"Error fetching stock price for {symbol}: {e}")
 #         return "⚠️ Error fetching stock price"
 
-@bot.command(name='stock', help='Get stock price. Usage: !stock SYMBOL')
+# @bot.command(name='stock', help='Get stock price. Usage: !stock SYMBOL')
+# async def stock(ctx, symbol: str):
+#     try:
+#         price = get_stock_price(symbol)
+        
+#         if price.startswith("❌") or price.startswith("⚠️"):
+#             await ctx.send(f"{ctx.author.mention} {price}")
+#         else:
+#             await ctx.send(f"📈 {ctx.author.mention} **{symbol.upper()}** price: **{price}**")
+#             logger.info(f"Stock price retrieved for {symbol}")
+
+#     except Exception as e:
+#         await ctx.send(f"⚠️ {ctx.author.mention} Error fetching stock data for {symbol}.")
+#         logger.error(f"Error fetching stock data for {symbol}: {e}")
+
+# def get_stock_price(symbol):
+#     try:
+#         stock = yf.Ticker(symbol)
+#         stock_data = stock.history(period="1d")
+
+#         # Check if stock data is empty
+#         if stock_data.empty:
+#             logger.error(f"No stock data available for {symbol}")
+#             return "❌ Stock price unavailable. Try again later."
+
+#         # Extract the latest closing price
+#         stock_price = stock_data["Close"].iloc[-1]
+
+#         return f"{stock_price:.2f}"  # Format to 2 decimal places
+
+#     except Exception as e:
+#         logger.error(f"Error fetching stock price for {symbol}: {e}")
+#         return "⚠️ Error fetching stock price"
+
+@bot.command(name='stock', help='Get detailed stock information. Usage: !stock SYMBOL')
 async def stock(ctx, symbol: str):
     try:
-        price = get_stock_price(symbol)
+        stock_info = get_stock_details(symbol)
         
-        if price.startswith("❌") or price.startswith("⚠️"):
-            await ctx.send(f"{ctx.author.mention} {price}")
+        if stock_info.startswith("❌") or stock_info.startswith("⚠️"):
+            await ctx.send(f"{ctx.author.mention} {stock_info}")
         else:
-            await ctx.send(f"📈 {ctx.author.mention} **{symbol.upper()}** price: **{price}**")
-            logger.info(f"Stock price retrieved for {symbol}")
+            await ctx.send(f"📊 {ctx.author.mention} {stock_info}")
+            logger.info(f"Stock details retrieved for {symbol.upper()}")
 
     except Exception as e:
-        await ctx.send(f"⚠️ {ctx.author.mention} Error fetching stock data for {symbol}.")
-        logger.error(f"Error fetching stock data for {symbol}: {e}")
+        await ctx.send(f"⚠️ {ctx.author.mention} Error fetching stock data for {symbol.upper()}.")
+        logger.error(f"Error fetching stock data for {symbol.upper()}: {e}")
 
-def get_stock_price(symbol):
+def get_stock_details(symbol):
     try:
         stock = yf.Ticker(symbol)
-        stock_data = stock.history(period="1d")
+        info = stock.info
 
-        # Check if stock data is empty
-        if stock_data.empty:
-            logger.error(f"No stock data available for {symbol}")
-            return "❌ Stock price unavailable. Try again later."
+        if not info or "regularMarketPrice" not in info:
+            return "❌ Invalid stock symbol. Please check the ticker."
 
-        # Extract the latest closing price
-        stock_price = stock_data["Close"].iloc[-1]
+        name = info.get("shortName", symbol.upper())
+        price = info.get("regularMarketPrice", "N/A")
+        change = info.get("regularMarketChangePercent", 0.0)
+        volume = info.get("regularMarketVolume", 0)
+        market_cap = info.get("marketCap", 0)
 
-        return f"{stock_price:.2f}"  # Format to 2 decimal places
+        # Format numbers
+        price_str = f"${price:,.2f}"
+        change_str = f"{change:.2f}%"
+        volume_str = f"{volume/1_000_000:.1f}M"  # Volume in millions
+        market_cap_str = (
+            f"${market_cap/1_000_000_000_000:.1f}T" if market_cap >= 1_000_000_000_000 
+            else f"${market_cap/1_000_000_000:.1f}B"
+        )
+
+        return f"**{name} ({symbol.upper()})**\nPrice: {price_str} ({'+' if change >= 0 else ''}{change_str})\nVolume: {volume_str}\nMarket Cap: {market_cap_str}"
 
     except Exception as e:
-        logger.error(f"Error fetching stock price for {symbol}: {e}")
-        return "⚠️ Error fetching stock price"
+        logger.error(f"Error fetching stock details for {symbol}: {e}")
+        return "⚠️ Error fetching stock details"
 
 # @bot.command(name='crypto', help='Get cryptocurrency price. Usage: !crypto COIN')
 # async def crypto(ctx, coin: str):
@@ -379,15 +423,17 @@ async def historical(ctx, symbol: str, period: str = "1y"):
         await ctx.send(f"⚠️ {ctx.author.mention} Error fetching historical data for {symbol}: {e}")
         logger.error(f"Error fetching historical data for {symbol}: {e}")
 
+# 
+
 @bot.command(name='set_alert', help='Set a price alert. Restricted to authorized users.')
 async def set_alert(ctx, asset: str, price: float):
     if not is_authorized(ctx):
-        await ctx.send("🚫{ctx.author.mention} You need the 'Trusted' role to set alerts.")
+        await ctx.send(f"🚫 {ctx.author.mention} You need the 'Trusted' role to set alerts.")
         return
     try:
         with open(ALERTS_FILE, "a") as f:
             f.write(f"{asset.upper()},{price},{ctx.author.id}\n")
-        await ctx.send(f"🔔{ctx.author.mention} Alert set for {asset.upper()} at **${price}**.")
+        await ctx.send(f"🔔 {ctx.author.mention} Alert set for {asset.upper()} at **${price:,.2f}**.")
         logger.info(f"Alert set for {asset.upper()} at ${price}")
     except Exception as e:
         await ctx.send(f"⚠️ {ctx.author.mention} Error setting alert for {asset}: {e}")
@@ -396,12 +442,12 @@ async def set_alert(ctx, asset: str, price: float):
 @bot.command(name='remove_alert', help='Remove a price alert. Restricted to authorized users.')
 async def remove_alert(ctx, asset: str):
     if not is_authorized(ctx):
-        await ctx.send("🚫 {ctx.author.mention} You do not have permission to remove alerts.")
+        await ctx.send(f"🚫 {ctx.author.mention} You do not have permission to remove alerts.")
         return
     try:
         asset = asset.upper()
         if not os.path.isfile(ALERTS_FILE):
-            await ctx.send(" {ctx.author.mention} No alerts found.")
+            await ctx.send(f"❌ {ctx.author.mention} No alerts found.")
             logger.info("No alerts found")
             return
         
@@ -416,6 +462,52 @@ async def remove_alert(ctx, asset: str):
     except Exception as e:
         await ctx.send(f"⚠️ {ctx.author.mention} Error removing alert for {asset}: {e}")
         logger.error(f"Error removing alert for {asset}: {e}")
+
+def get_price(symbol):
+    """Fetch stock or crypto price based on symbol."""
+    try:
+        if symbol in COINGECKO_SYMBOL_MAP:
+            coin_id = COINGECKO_SYMBOL_MAP[symbol]
+            url = "https://api.coingecko.com/api/v3/simple/price"
+            params = {"ids": coin_id, "vs_currencies": "usd"}
+            response = requests.get(url, params=params, timeout=5)
+            data = response.json()
+            return data[coin_id]['usd']
+        else:
+            stock = yf.Ticker(symbol)
+            stock_data = stock.history(period="1d")
+            if not stock_data.empty:
+                return stock_data["Close"].iloc[-1]
+            return None
+    except Exception as e:
+        logger.error(f"Error fetching price for {symbol}: {e}")
+        return None
+
+@tasks.loop(seconds=30)  # Check alerts every 30 seconds
+async def check_price_alerts():
+    if not os.path.isfile(ALERTS_FILE):
+        return
+
+    with open(ALERTS_FILE, "r") as f:
+        alerts = f.readlines()
+
+    for alert in alerts:
+        try:
+            asset, price, user_id = alert.strip().split(",")
+            current_price = get_price(asset)
+            if current_price and float(current_price) >= float(price):
+                user = await bot.fetch_user(int(user_id))
+                await user.send(f"🚨 **Price Alert!** {asset} has reached ${current_price:,.2f}")
+                logger.info(f"Alert triggered for {asset} at ${current_price}")
+                
+                # Remove the triggered alert
+                alerts.remove(alert)
+        except Exception as e:
+            logger.error(f"Error processing alert: {e}")
+
+    with open(ALERTS_FILE, "w") as f:
+        f.writelines(alerts)
+
 
 @bot.command(name='portfolio', help='Track your portfolio. Restricted to authorized users.')
 async def portfolio(ctx, *stocks: str):
@@ -582,16 +674,13 @@ async def check_watchlist():
             except Exception as e:
                 logger.error(f"Failed to send watchlist update to user {user_id}: {e}")
 
+
 @bot.event
 async def on_ready():
     """Bot startup event."""
     logger.info(f"✅ Bot connected as {bot.user}")
-    check_watchlist.start()  # Start periodic watchlist updates
-
-@bot.event
-async def on_ready():
-    logger.info(f"✅ Bot connected as {bot.user}")
-    check_watchlist.start()
+    check_watchlist.start() # Start periodic watchlist updates
+    check_price_alerts.start()
 
 bot.run(DISCORD_TOKEN)
 
